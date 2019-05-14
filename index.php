@@ -149,9 +149,9 @@
       $result = $conn -> query($sql);
       // var_dump($result); die();
 
+      $prenotazioni = []; //Mettendolo prima dell'if in caso di nessun risultato non ho Null ma un array vuoto.
       if ($result -> num_rows > 0) {
 
-        $prenotazioni = [];
         while ($row = $result -> fetch_assoc()) {
           // var_dump($row); die();
           $prenotazioni[] = new Stanza(
@@ -168,11 +168,77 @@
         // var_dump($prenotazioni); die();
         return $prenotazioni;
       }
-      else {
-        echo "0 Risultati";
+    }
+  }
+
+  /**
+   *
+   */
+  class Ospite
+  {
+    private $id;
+    private $name;
+    private $lastname;
+
+    function __construct($id, $name, $lastname)
+    {
+      $this -> id = $id;
+      $this -> name = $name;
+      $this -> lastname = $lastname;
+    }
+
+    public function getId()
+    {
+      return $this -> id;
+    }
+
+    public function getName()
+    {
+      return $this -> name;
+    }
+
+    public function getLastName()
+    {
+      return $this -> lastname;
+    }
+
+    public static function getAllOspiti($conn, $id)
+    {
+      $sql = "
+              SELECT *
+              FROM prenotazioni_has_ospiti
+              WHERE prenotazione_id = $id";
+
+      $result = $conn -> query($sql);
+
+      if ($result -> num_rows > 0) {
+
+        $row = $result -> fetch_assoc(); // In questo caso io ho creato due query ma si poteva fare anche una join. Essendo una relazione molti a molti
+        $idOspite = $row["ospite_id"];   // Ci possono essere anche più risultati quindi bisogna usare il primo approccio (array vuoto + while) ma in questo
+        // var_dump($idOspite); die();   // caso essendo un db fake sono certo che ne ho solo uno e non si ripetono quindi salvo il risultato in $row.
+
+        $sql2 = "
+                SELECT id, name, lastname
+                FROM ospiti
+                WHERE id = $idOspite
+                ";
+        $result2 = $conn -> query($sql2);
+
+        if ($result2 -> num_rows > 0) {
+
+          $row = $result2 -> fetch_assoc();
+          $ospite = new Ospite(
+            $row["id"],
+            $row["name"],
+            $row["lastname"]
+          );
+
+          return $ospite;
+        }
       }
     }
   }
+
 
   // ----------------------------------Inizio connessione DB
   $conn = new mysqli($server, $user, $password, $database);
@@ -188,17 +254,25 @@
   // var_dump($prenotazioni); die();
   $prenotazioni = Stanza::getAllRoom($conn);
 
-  foreach ($prenotazioni as $key => $prenotazione) {
+  if(count($prenotazioni) > 0) {
+       foreach ($prenotazioni as $key => $prenotazione) {
+         // var_dump($key, $prenotazione); die();
 
-    // var_dump($key, $prenotazione); die();
-    echo "Prenotazione: " . ($key+1) . "<br>" .
-          "Data: " . $prenotazione -> getCreatedAt() . "<br>" .
-          "Stanza Id: " . $prenotazione -> getStanzaId() .
-          " || Numero Stanza: " . $prenotazione -> getRoomNumber() .
-          " || Numero Piano: " . $prenotazione -> getFloor() .
-          " || Numero Letti: " . $prenotazione -> getBeds() . "<br>" .
-          "Configurazione Id: " . $prenotazione -> getConfigurazioneId() . "<br><br>";
-  }
+        $ospite = Ospite::getAllOspiti($conn, $prenotazione -> getId()); // Potrei anche inserirlo dentro a $prenotazione semplicmenete con: $prenotazione -> ospite = $ospite;
+        // var_dump($ospite);
+        echo  "Prenotazione: " . ($key+1) . "<br>" .
+              "Data: " . $prenotazione -> getCreatedAt() . "<br>" .
+              "Stanza Id: " . $prenotazione -> getStanzaId() .
+              " || Numero Stanza: " . $prenotazione -> getRoomNumber() .
+              " || Numero Piano: " . $prenotazione -> getFloor() .
+              " || Numero Letti: " . $prenotazione -> getBeds() . "<br>" .
+              "Ospite ID: " . $ospite -> getId() . " || Nome: " . $ospite -> getName() . " || Cognome: " . $ospite -> getLastName() . "<br>" .
+              "Configurazione Id: " . $prenotazione -> getConfigurazioneId() . "<br><br>";
+          }
+        }
+        else {
+           echo "0 risultati";
+        }
 
   $conn -> close();
  ?>

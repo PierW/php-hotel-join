@@ -2,7 +2,7 @@
 
   $server = "localhost";
   $user = "root";
-  $password = "130991";
+  $password = "******";
   $database = "Hotel";
 
  ?>
